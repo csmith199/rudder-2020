@@ -49,6 +49,7 @@ int main()
     nmea2k::PduHeader h;
 
     // TODO startup ROS publisher LATER
+    // this node is NOT on ROS so it doesn't need this
     //nh.initNode();
     //nh.advertise(chatter);
 
