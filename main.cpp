@@ -1,8 +1,3 @@
-/** @file rudder-2020/main.cpp
-    @brief Rudder node code for Sailbot AY20 Hull 14 mod 3
-    L Marino and D Evangelista
-*/
-
 #include "mbed.h"
 #include "nmea2k.h" // use dev branch!
 #include "pgn/iso/Pgn60928.h" // ISO address claim
@@ -10,17 +5,14 @@
 #include "pgn/Pgn127245.h" // rudder
 #include "hull14mod3.h"
 
-#define RUDDER_VERSION "14.3.0 PT1"
+#define BRIDGE_VERSION "14.3.0 PT1"
 
 Serial pc(USBTX,USBRX);
 nmea2k::CANLayer n2k(p30,p29); // for sending nmea2k messages
 unsigned char node_addr = HULL14MOD3_RUDDER_ADDR;
 DigitalOut rxled(LED2);
 
-// Consider abstracting all of this as a SailbotActuator
-// This part should be abstracted as a Pst360
 AnalogIn   r_ain(p15);
-// This part should be abstracted as a Pololu
 PwmOut  rudder( p22 );
 DigitalOut   r_dir( p21 );
 DigitalOut    r_I(p23);
@@ -49,12 +41,11 @@ int main()
     nmea2k::PduHeader h;
 
     // TODO startup ROS publisher LATER
-    // this node is NOT on ROS so it doesn't need this
     //nh.initNode();
     //nh.advertise(chatter);
 
     // startup messages
-    pc.printf("0x%02x:main: Rudder node version %s\r\n",node_addr,RUDDER_VERSION);
+    pc.printf("0x%02x:main: Bridge node version %s\r\n",node_addr,BRIDGE_VERSION);
     pc.printf("0x%02x:main: nmea2k version %s\r\n",node_addr,NMEA2K_VERSION);
    
 
@@ -75,10 +66,8 @@ int main()
             pc.printf("\r\n");
 
             //First attempt at taking things from NMEA and putting it on ROS
-            if((h.pgn()== 127245)&&(h.instance() == 0 ) { //see if rudder pgn and correct instance
-		r_order = f.angle_order();  //Need to divide by resolution
-		// e.g. (float) f.angle_order()/PGN_127245_ANGLE_RES;
-		
+            if((h.pgn()== 127245)&&( f.instance() == 0) { //see if rudder pgn and correct instance
+            r_order =  f.angle_order;  
             pc.printf("\r\n r_order: %f \r\n",r_order);                  //I forgot how to get data out of pgns..
             } //if(h.pgn()...
 
@@ -103,7 +92,6 @@ ThisThread::sleep_for(1000);
 
 
 
-// Remember this part is being handeld on the bridge node? 
 void rudder_process(void)
 {
     while(1) {
