@@ -1,11 +1,12 @@
 #include "mbed.h"
+#include "rtos.h"
 #include "nmea2k.h" // use dev branch!
 #include "pgn/iso/Pgn60928.h" // ISO address claim
 #include "pgn/Pgn126993.h" // heartbeat
 #include "pgn/Pgn127245.h" // rudder
 #include "hull14mod3.h"
 
-#define BRIDGE_VERSION "14.3.0 PT1"
+#define RUDDER_VERSION "14.3.0 PT1"
 
 Serial pc(USBTX,USBRX);
 nmea2k::CANLayer n2k(p30,p29); // for sending nmea2k messages
@@ -17,7 +18,7 @@ AnalogIn   r_ain(p15);
 PwmOut  rudder( p22 );
 DigitalOut   r_dir( p21 );
 DigitalOut    r_I(p23);
-DigitalOut r_slp(p30); //sleep
+DigitalOut r_slp(p30); //sleep THIS LINE BUGGY REASSIGNS P30 TO BE DIGITAL OUT
 DigitalOut r_brk(p8);
 float r_pos = 100;
 float r_order = 180.0;
@@ -42,17 +43,19 @@ int main(void){
   nmea2k::Frame f;
   nmea2k::PduHeader h;
   nmea2k::Pgn127245 d(0,0,0,0);
-  
+
+  pc.printf("0x%02x:main: rudder node version %s\r\n",node_addr,RUDDER_VERSION);
   pc.printf("0x%02x:main: nmea2k version %s\r\n",node_addr,NMEA2K_VERSION);
   pc.printf("0x%02x:main: PGN 127245 receive demo\r\n",node_addr);
   
   heartbeat_thread.start(&heartbeat_process);
-  heartbeat_thread.start(&heartbeat_process); 
   pc.printf("0x%02x:main: listening for Rudder PGN 127245\r\n", node_addr);
   while (1){
 
     if (n2k.read(f)){
       h = nmea2k::PduHeader(f.id);
+      pc.printf("0x%02x:main: got PGN %d SA %02x DA %02x\r\n",
+		node_addr,h.pgn(), h.sa(), h.da());
       if ((h.da() == NMEA2K_BROADCAST) || (h.da() == node_addr))
         switch(h.pgn()){
           case 127245:
@@ -79,7 +82,7 @@ int main(void){
         } // switch(h.pgn())
     } // if addressed to us
     
-    ThisThread::sleep_for(100); 
+    ThisThread::sleep_for(10); 
   } // while(1)
 } // int main(void)
 
