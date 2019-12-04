@@ -2,39 +2,39 @@
 #include "nmea2k.h" // use dev branch!
 #include "pgn/iso/Pgn60928.h" // ISO address claim
 #include "pgn/Pgn126993.h" // heartbeat
-#include "pgn/Pgn127245.h" // rudder
+#include "pgn/Pgn127245.h" // mast
 #include "hull14mod3.h"
 
 #define BRIDGE_VERSION "14.3.0 PT1"
 int i;
 Serial pc(USBTX,USBRX);
 nmea2k::CANLayer n2k(p30,p29); // for sending nmea2k messages
-unsigned char node_addr = HULL14MOD3_RUDDER_ADDR;
+unsigned char node_addr = HULL14MOD3_MAST_ADDR;
 DigitalOut rxled(LED2);
 DigitalOut txled(LED1);
 
-AnalogIn   r_ain(p15);
-PwmOut  rudder( p22 );
-DigitalOut   r_dir( p21 );
-DigitalOut r_slp(p23); //sleep
-DigitalOut r_brk(p8);
-float r_pos = 100;
-float r_order = 180.0;
+AnalogIn   m_ain(p15);
+PwmOut  mast( p22 );
+DigitalOut   m_dir( p21 );
+DigitalOut m_slp(p23); //sleep
+DigitalOut m_brk(p8);
+float m_pos = 100;
+float m_order = 180.0;
 float RC_1;
 
 float xx = 5.5; //changes the threshold that the motor goes to sleep on
 float gg = 9.5; //changes the threshold that the motor goes to sleep on for mast
 float zz = 121; //changes wait at end of rc thread
-float ww = 5; //changes wait time at end of if statments in mast rudder threads
+float ww = 5; //changes wait time at end of if statments in mast mast threads
 int ff = 65;//changes wait at end of telemetry
 
 //**get position**
 float posr();
 // *****threading*****
-Thread rudder_thread;
+Thread mast_thread;
 Thread heartbeat_thread;
 
-void rudder_process(void);
+void mast_process(void);
 void heartbeat_process(void);
 
 int main(void)
@@ -49,8 +49,8 @@ int main(void)
     pc.printf("0x%02x:main: PGN 127245 receive demo\r\n",node_addr);
 
     heartbeat_thread.start(&heartbeat_process);
-    rudder_thread.start(&rudder_process);
-    pc.printf("0x%02x:main: listening for Rudder PGN 127245\r\n", node_addr);
+    mast_thread.start(&mast_process);
+    pc.printf("0x%02x:main: listening for mast PGN 127245\r\n", node_addr);
     while (1) {
 
         if (n2k.read(f)) {
@@ -58,7 +58,7 @@ int main(void)
             if ((h.da() == NMEA2K_BROADCAST) || (h.da() == node_addr))
                 switch(h.pgn()) {
                     case 127245:
-                        //debug("0x%02x:main: handling Rudder PGN 127245\r\n", node_addr);
+                        //debug("0x%02x:main: handling mast PGN 127245\r\n", node_addr);
                         //d = PgnParser127245(f);
                         d = nmea2k::Pgn127245(f.data);
                         //debug("0x%02x:main: received data 0x",node_addr);
@@ -72,10 +72,11 @@ int main(void)
                                   d.direction_order(),
                                   (float)d.angle_order()/PGN_127245_ANGLE_RES*180.0/NMEA2K_PI,
                                   (float)d.position()/PGN_127245_ANGLE_RES*180.0/NMEA2K_PI);
-                        if(d.instance() == 0){
-                        r_order = (float)d.angle_order()/PGN_127245_ANGLE_RES*180.0/NMEA2K_PI;
-                        //pc.printf("r_order: %3.1f\r\n",r_order);
+                        if(d.instance() == 1){
+                        m_order = (float)d.angle_order()/PGN_127245_ANGLE_RES*180.0/NMEA2K_PI;
+                        //pc.printf("m_order: %3.1f\r\n",m_order);
                         }//if(d.instance..
+                        
                         break;
                     default:
                         pc.printf("0x%02x:main: received unhandled PGN %d\r\n",
@@ -94,30 +95,30 @@ int main(void)
 
 
 
-void rudder_process(void)
+void mast_process(void)
 {
     int direction = 0;
     float error = 0.0;
     float threshold = 6.0;
-    float rudder_interval = .2;
-    rudder.pulsewidth(0);
-    rudder.period(.001);
-    pc.printf("rudder process\r\n");
+    float mast_interval = .2;
+    mast.pulsewidth(0);
+    mast.period(.001);
+    pc.printf("mast process\r\n");
     
     while(1) {
 
-        r_pos = posr();
-       // pc.printf("rudder pos: %f ", r_pos);
+        m_pos = posr();
+       // pc.printf("mast pos: %f ", m_pos);
 
-        error = r_pos - r_order;
+        error = m_pos - m_order;
         pc.printf("error: %f\r\n",error);
 
         while((abs(error)-threshold) > 0.0) {
             
             
             pc.printf("threshold: %f",abs(abs(error)-threshold));
-            r_brk = 1;
-            r_slp = 1;
+            m_brk = 1;
+            m_slp = 1;
             //ThisThread::sleep_for(1); //add a little time for break to engage
             direction = (int)(-1*(error/abs(error)));
             
@@ -126,18 +127,18 @@ void rudder_process(void)
             }
             
             pc.printf("dir: %d\r\n",direction);
-            r_dir = direction;
-            rudder.pulsewidth(.0005);
+            m_dir = direction;
+            mast.pulsewidth(.0005);
             
-            r_pos = posr();
-            error = r_pos - r_order;
+            m_pos = posr();
+            error = m_pos - m_order;
             pc.printf("error: %f\r\n",error);
         }
 
-        r_brk = 0;
-        r_slp = 0;
-        rudder.pulsewidth(0);
-        ThisThread::sleep_for(rudder_interval*100);
+        m_brk = 0;
+        m_slp = 0;
+        mast.pulsewidth(0);
+        ThisThread::sleep_for(mast_interval*100);
 
     }
 
@@ -181,8 +182,8 @@ float posr()
     float r1;
     float r2;
     float r3;
-    r1 = (r_ain-.108)/.002466;
+    r1 = (m_ain-.108)/.002466;
     Thread::wait(1);
-    r2 = (r_ain-.108)/.002466;
+    r2 = (m_ain-.108)/.002466;
     return (r1+r2)/2.0;
 }
