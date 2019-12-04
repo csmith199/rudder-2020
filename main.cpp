@@ -39,9 +39,9 @@ void heartbeat_process(void);
 
 int main(void)
 {
-    int read_interval = 1; //NOTE: The time it takes for the rudder to respond to a command is  
-                            //apprx the read_interval + the bridge node's write interval 
-    nmea2k::Frame f;        // so w/ current settings, abt 2 seconds to respond
+    int read_interval = 1;
+    
+    nmea2k::Frame f;
     nmea2k::PduHeader h;
     nmea2k::Pgn127245 d(0,0,0,0);
 
@@ -72,9 +72,10 @@ int main(void)
                                   d.direction_order(),
                                   (float)d.angle_order()/PGN_127245_ANGLE_RES*180.0/NMEA2K_PI,
                                   (float)d.position()/PGN_127245_ANGLE_RES*180.0/NMEA2K_PI);
-
+                        if(d.instance() == 0){
                         r_order = (float)d.angle_order()/PGN_127245_ANGLE_RES*180.0/NMEA2K_PI;
                         //pc.printf("r_order: %3.1f\r\n",r_order);
+                        }//if(d.instance..
                         break;
                     default:
                         pc.printf("0x%02x:main: received unhandled PGN %d\r\n",
@@ -85,6 +86,11 @@ int main(void)
         ThisThread::sleep_for(read_interval*100);
     } // while(1)
 } // int main(void)
+
+
+
+
+
 
 
 
@@ -107,35 +113,35 @@ void rudder_process(void)
         pc.printf("error: %f\r\n",error);
 
         while((abs(error)-threshold) > 0.0) {
-           
-            //pc.printf("threshold: %f",abs(abs(error)-threshold));
+            
+            
+            pc.printf("threshold: %f",abs(abs(error)-threshold));
             r_brk = 1;
             r_slp = 1;
+            //ThisThread::sleep_for(1); //add a little time for break to engage
             direction = (int)(-1*(error/abs(error)));
             
             if(direction == -1) {
                 direction = 0;
-            }//if(direction..
+            }
             
-            //pc.printf("dir: %d\r\n",direction);
+            pc.printf("dir: %d\r\n",direction);
             r_dir = direction;
             rudder.pulsewidth(.0005);
             
             r_pos = posr();
             error = r_pos - r_order;
             pc.printf("error: %f\r\n",error);
-        }//while(abs(error..
+        }
 
         r_brk = 0;
         r_slp = 0;
         rudder.pulsewidth(0);
         ThisThread::sleep_for(rudder_interval*100);
 
-    }//while(1)
+    }
 
 }//rudcallback
-
-
 
 void heartbeat_process(void)
 {
@@ -168,7 +174,6 @@ void heartbeat_process(void)
         ThisThread::sleep_for(heartbeat_interval*1000);
     } // while(1)
 } // void heartbeat_process(void)
-
 
 
 float posr()
